@@ -1,0 +1,20 @@
+{
+  "name": "euler-math-lab",
+  "version": "0.0.1",
+  "description": "A math laboratory to be expanded with new functions ",
+  "type": "module",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Please specify a test\" && exit 1",
+    "dev": "node app.js"
+  },
+  "keywords": [
+    "math",
+    "laboratory"
+  ],
+  "author": "Diego Silva <contato@diegosilva.me>",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
