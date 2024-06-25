@@ -8,10 +8,31 @@ class MathExpression extends InputMethod {
         super();
     }
 
+
+    handleDoubleOperators(operators, numbers) {
+
+        let doubleOperators = operators.map((operator, index) => operator.length > 1 ? index: undefined).filter(x => x != undefined);
+
+        if(doubleOperators != undefined && doubleOperators.length > 0) {
+            Logger.log("doubleOperators:" + doubleOperators.toString());
+
+            doubleOperators.forEach(index => {
+                numbers[index+1] = parseInt(operators[index].charAt(1) + "1") * numbers[index+1];
+                operators[index] = operators[index].charAt(0);
+            }, this);
+    
+            Logger.log("doubleOperators updated numbers:" + numbers.toString());
+            Logger.log("doubleOperators updated operators:" + operators.toString());            
+        }
+
+    }
+
     async solve(expression) {
 
         let numbers = [...expression.matchAll(/\d+/g)].map((num) => parseInt(num));
-        let operators = [...expression.matchAll(/\D+/g)];
+        let operators = [...expression.matchAll(/\D+/g)].map((operator) => operator.toString());
+
+        this.handleDoubleOperators(operators, numbers);
         
         Logger.log("\nNumbers:" + numbers.toString());
         Logger.log("Operators:" + operators.toString());
