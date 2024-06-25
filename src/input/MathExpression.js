@@ -1,5 +1,6 @@
 import InputMethod from "./InputMethod.js";
 import Logger from "../common/Logger.js";
+import {operationsPriorityOrder, orderMarkers} from "../data/shared.js"
 
 class MathExpression extends InputMethod {
 
@@ -7,17 +8,8 @@ class MathExpression extends InputMethod {
         super();
     }
 
-    getOperatorsPriorityFifo() {
-        return [['+','-'], ['*','/'], ['^']];
-    }
+    async solve(expression) {
 
-
-    async process(req) {
-
-        const expression = req.query;
-        Logger.log("Expression: " + expression);
-        const priorityFifo = this.getOperatorsPriorityFifo();
-        
         let numbers = [...expression.matchAll(/\d+/g)].map((num) => parseInt(num));
         let operators = [...expression.matchAll(/\D+/g)];
         
@@ -27,13 +19,15 @@ class MathExpression extends InputMethod {
 
         while(operators.length > 0) {
 
-            let opFifoItem = priorityFifo.pop();
-            
-            if(opFifoItem != undefined) {
-                Logger.log("\nopFifoItem: " + opFifoItem.toString());
+            for(let i=0;i<operationsPriorityOrder.length;i++) {
+
+                let operationsToCheck = operationsPriorityOrder[i];
+
+                Logger.log("\operationsToCheck: " + operationsToCheck.toString());
                 let ocurrences = [];
+
                 do {
-                    ocurrences = operators.map((element, index) => opFifoItem.includes(element[0])? index : undefined).filter(x => x!= undefined);
+                    ocurrences = operators.map((element, index) => operationsToCheck.includes(element[0])? index : undefined).filter(x => x!= undefined);
 
                     if(ocurrences != undefined && ocurrences.length > 0) {
                         Logger.log("Ocurrences: " + ocurrences.toString());
@@ -57,10 +51,61 @@ class MathExpression extends InputMethod {
     
 
                 } while(ocurrences.length > 0);
+
             }
         }
 
-        const finalResult = numbers.pop();
+        return numbers.pop();
+    }
+
+    getCloseMarkerIndex(openMarkerIndex, expression) {
+        let openMarker = expression.charAt(openMarkerIndex);
+        let closeMarker = orderMarkers[openMarker];
+
+        return expression.indexOf(closeMarker, openMarkerIndex);
+    }
+
+    async processSubExpression(expression) {
+        let regEx = new RegExp("\\{|\\[|\\]|\\(|\\)|\\}","");
+
+        if(regEx.test(expression.charAt(0))) {
+            expression = expression.substring(1,expression.length-1);
+            Logger.log("(Sub)Expression without markers: " + expression);
+        }
+
+        let subexpressionSeparators = [...expression].map((element, index) => (regEx.test(element) ? index:undefined)).filter(x => x != undefined);
+
+        while(subexpressionSeparators != undefined && subexpressionSeparators.length > 0) {
+            Logger.log("\n\nsubexpressionSeparators:" + subexpressionSeparators.toString());
+
+            let openMarkerIndex = subexpressionSeparators[0];
+            let closeMarkerIndex = this.getCloseMarkerIndex(openMarkerIndex, expression);            
+            let subExpresion = expression.substring(openMarkerIndex, closeMarkerIndex+1);
+
+            Logger.log("subexpresion:" + subExpresion);
+            let partialResult = await this.processSubExpression(subExpresion);
+            Logger.log("Partial Result:" + partialResult);
+
+            Logger.log("before update expresion:" + expression);
+            expression = expression.replace(subExpresion, partialResult);
+            Logger.log("updated expresion:" + expression);
+
+            Logger.log("before update subexpressionSeparators:" + subexpressionSeparators);
+            let expresionLengthDiff = (closeMarkerIndex-openMarkerIndex) - partialResult.toString().length + 1;
+            subexpressionSeparators = subexpressionSeparators.filter((value) => value < openMarkerIndex || value > closeMarkerIndex).map(value => value - expresionLengthDiff);
+            Logger.log("updated subexpressionSeparators:" + subexpressionSeparators);
+        }   
+        
+        return this.solve(expression);
+    }
+
+
+    async process(req) {
+
+        Logger.log("Original Expression: " + req.query);
+
+        const finalResult = await this.processSubExpression(req.query)
+
         Logger.log("\n\nFinal result:" + finalResult);
 
         return finalResult;
