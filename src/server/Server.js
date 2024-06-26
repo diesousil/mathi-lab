@@ -29,10 +29,16 @@ class Server {
     }
 
     expresssionInput(query, res) {
-        let inputMethod = new ExpressionInputMethod();
-        inputMethod.process(query).then(function(result) {
-            Logger.log("Result to send:" + result);
-            res.json(new Response(Response.Success, result, ""));
+            const startDateTime = Date.now();
+            Logger.log("Started: " + startDateTime.toString());
+        
+            let inputMethod = new ExpressionInputMethod();
+            inputMethod.process(query).then(function(result) {
+
+            const endDateTime = Date.now();
+            Logger.log("Ended: " + endDateTime.toString());
+                
+            res.json(new Response(Response.Success, result, "", endDateTime-startDateTime));
         });
     }
 }

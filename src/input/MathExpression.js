@@ -127,6 +127,7 @@ class MathExpression extends InputMethod {
 
         const finalResult = await this.processSubExpression(req.query)
 
+        const endDateTime = Date.now();
         Logger.log("\n\nFinal result:" + finalResult);
 
         return finalResult;
