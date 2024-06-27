@@ -29,11 +29,11 @@ class Server {
     }
 
     expresssionInput(query, res) {
-            const startDateTime = Date.now();
-            Logger.log("Started: " + startDateTime.toString());
-        
-            let inputMethod = new ExpressionInputMethod();
-            inputMethod.process(query).then(function(result) {
+        const startDateTime = Date.now();
+        Logger.log("Started: " + startDateTime.toString());
+    
+        let inputMethod = new ExpressionInputMethod();
+        inputMethod.process(query).then(function(result) {
 
             const endDateTime = Date.now();
             Logger.log("Ended: " + endDateTime.toString());
