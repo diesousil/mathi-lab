@@ -120,12 +120,44 @@ class MathExpression extends InputMethod {
         return this.solve(expression);
     }
 
+    isNumericChar(chr) {
+
+        let result = (chr.charCodeAt(0) >= "0".charCodeAt(0) && chr.charCodeAt(0) <= "9".charCodeAt(0));
+        Logger.log("chr:" + chr);
+        Logger.log("is digit?" + result);
+        return result;
+    }
+
+    formatQuery(query) {
+        //|\\d+{|\\)\\d+|\\]\\d+|\\d+\\}
+        let ereg = new RegExp("\\d+\\(|\\d+\\[|\\d+\\{","g");
+        let indexes = [...query.matchAll(ereg)].map(a => a.index);
+
+        if(indexes != undefined && indexes.length > 0) {
+            Logger.log("Multiplication without symbol to replace:" + indexes.toString()); 
+
+            for(let i=0;i<indexes.length; i++) {
+                let pos = indexes[i];
+                while(this.isNumericChar(query.charAt(pos))) {
+                    pos+=1;
+                }
+
+                query = query.substring(0, pos) + "*" + query.substring(pos);
+                indexes = indexes.map((value) => value + 1);
+            }
+        }
+
+        return query;
+
+    }
 
     async process(req) {
 
-        Logger.log("Original Expression: " + req.query);
+        Logger.log("Original expression: " + req.query);
+        let query = this.formatQuery(req.query);
+        Logger.log("Expression after format: " + query);
 
-        const finalResult = await this.processSubExpression(req.query)
+        const finalResult = await this.processSubExpression(query)
 
         const endDateTime = Date.now();
         Logger.log("\n\nFinal result:" + finalResult);
