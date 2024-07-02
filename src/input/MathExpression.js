@@ -1,6 +1,6 @@
 import InputMethod from "./InputMethod.js";
 import Logger from "../common/Logger.js";
-import {operationsPriorityOrder, orderMarkers} from "../data/shared.js"
+import {operationsPriorityOrder, orderMarkers, allMarkers, closeMarkers} from "../data/shared.js"
 
 class MathExpression extends InputMethod {
 
@@ -55,6 +55,13 @@ class MathExpression extends InputMethod {
                         
                         let opIndex = ocurrences[0];
                         let operator = operators[opIndex];
+
+                        
+                        if(expression.charAt(0) == operator) {
+                            operators.splice(opIndex, 1);
+                            numbers[0] *= parseInt(operator + "1");
+                        }
+
                         let n1 = numbers[opIndex];
                         let n2 = numbers[opIndex+1];
                         Logger.log("Processing: " + n1 + " " + operator + " " + n2)
@@ -86,21 +93,25 @@ class MathExpression extends InputMethod {
         return expression.indexOf(closeMarker, openMarkerIndex);
     }
 
-    async processSubExpression(expression) {
-        let regEx = new RegExp("\\{|\\[|\\]|\\(|\\)|\\}","");
+    isSeparator(charValue) {
+        return (allMarkers.indexOf(charValue)>=0);
+    }
 
-        if(regEx.test(expression.charAt(0))) {
+    async processSubExpression(expression) {
+        Logger.log("\n\n============ processSubExpression iteration " + expression + " ============");
+
+        if(this.isSeparator(expression.charAt(0)) && this.getCloseMarkerIndex(0, expression) == (expression.length-1)) {
             expression = expression.substring(1,expression.length-1);
             Logger.log("(Sub)Expression without markers: " + expression);
         }
+        
+        let subexpressionallMarkers = [...expression].map((expressionChar, index) => (this.isSeparator(expressionChar) ? index:undefined)).filter(x => x != undefined);
 
-        let subexpressionSeparators = [...expression].map((element, index) => (regEx.test(element) ? index:undefined)).filter(x => x != undefined);
+        while(subexpressionallMarkers != undefined && subexpressionallMarkers.length > 0) {
+            Logger.log("\n\nsubexpressionallMarkers:" + subexpressionallMarkers.toString());
 
-        while(subexpressionSeparators != undefined && subexpressionSeparators.length > 0) {
-            Logger.log("\n\nsubexpressionSeparators:" + subexpressionSeparators.toString());
-
-            let openMarkerIndex = subexpressionSeparators[0];
-            let closeMarkerIndex = this.getCloseMarkerIndex(openMarkerIndex, expression);            
+            let openMarkerIndex = subexpressionallMarkers[0];
+            let closeMarkerIndex = this.getCloseMarkerIndex(openMarkerIndex, expression);
             let subExpresion = expression.substring(openMarkerIndex, closeMarkerIndex+1);
 
             Logger.log("subexpresion:" + subExpresion);
@@ -111,10 +122,10 @@ class MathExpression extends InputMethod {
             expression = expression.replace(subExpresion, partialResult);
             Logger.log("updated expresion:" + expression);
 
-            Logger.log("before update subexpressionSeparators:" + subexpressionSeparators);
+            Logger.log("before update subexpressionallMarkers:" + subexpressionallMarkers);
             let expresionLengthDiff = (closeMarkerIndex-openMarkerIndex) - partialResult.toString().length + 1;
-            subexpressionSeparators = subexpressionSeparators.filter((value) => value < openMarkerIndex || value > closeMarkerIndex).map(value => value - expresionLengthDiff);
-            Logger.log("updated subexpressionSeparators:" + subexpressionSeparators);
+            subexpressionallMarkers = subexpressionallMarkers.filter((value) => value < openMarkerIndex || value > closeMarkerIndex).map(value => value - expresionLengthDiff);
+            Logger.log("updated subexpressionallMarkers:" + subexpressionallMarkers);
         }   
         
         return this.solve(expression);
@@ -129,8 +140,7 @@ class MathExpression extends InputMethod {
     }
 
     formatQuery(query) {
-        //|\\d+{|\\)\\d+|\\]\\d+|\\d+\\}
-        let ereg = new RegExp("\\d+\\(|\\d+\\[|\\d+\\{","g");
+        let ereg = new RegExp("\\d+\\(|\\d+\\[|\\d+\\{|\\)\\(","g");
         let indexes = [...query.matchAll(ereg)].map(a => a.index);
 
         if(indexes != undefined && indexes.length > 0) {
@@ -138,8 +148,10 @@ class MathExpression extends InputMethod {
 
             for(let i=0;i<indexes.length; i++) {
                 let pos = indexes[i];
-                while(this.isNumericChar(query.charAt(pos))) {
+                let wasFirstChar = true;
+                while(this.isNumericChar(query.charAt(pos)) || (wasFirstChar && closeMarkers.indexOf(query.charAt(pos)) >= 0)) {
                     pos+=1;
+                    wasFirstChar = false;
                 }
 
                 query = query.substring(0, pos) + "*" + query.substring(pos);
