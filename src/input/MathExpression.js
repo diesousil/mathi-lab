@@ -1,6 +1,6 @@
 import InputMethod from "./InputMethod.js";
 import Logger from "../common/Logger.js";
-import {operationsPriorityOrder, orderMarkers, allMarkers, closeMarkers} from "../data/shared.js"
+import {operationsPriorityOrder, orderMarkers, allMarkers, closeMarkers, isNumberRegex, isOperatorRegex} from "../data/shared.js"
 
 class MathExpression extends InputMethod {
 
@@ -27,16 +27,29 @@ class MathExpression extends InputMethod {
 
     }
 
+    handleFirstCharOperator(numbers, operators, expression) {
+
+        let isFirstCharOperator = (expression.charAt(0).match(isOperatorRegex) != null);
+        Logger.log("First exp char:" + expression.charAt(0) + " <- is operator ? -> " + isFirstCharOperator);
+        if(isFirstCharOperator) {
+            operators.splice(0, 1);
+            numbers[0] *= parseInt(expression.charAt(0) + "1");
+            Logger.log("\nChanged Numbers:" + numbers.toString());
+            Logger.log("Changed Operators:" + operators.toString());
+        }
+
+    }
+
     async solve(expression) {
 
-        let numbers = [...expression.matchAll(/\d+/g)].map((num) => parseInt(num));
-        let operators = [...expression.matchAll(/\D+/g)].map((operator) => operator.toString());
-
-        this.handleDoubleOperators(operators, numbers);
-        
+        let numbers = [...expression.matchAll(isNumberRegex)].map((num) => parseFloat(num));
         Logger.log("\nNumbers:" + numbers.toString());
+
+        let operators = [...expression.matchAll(isOperatorRegex)].map((operator) => operator.toString());
+        this.handleDoubleOperators(operators, numbers);
         Logger.log("Operators:" + operators.toString());
 
+        this.handleFirstCharOperator(numbers, operators, expression);
 
         while(operators.length > 0) {
 
@@ -48,6 +61,7 @@ class MathExpression extends InputMethod {
                 let ocurrences = [];
 
                 do {
+                    
                     ocurrences = operators.map((element, index) => operationsToCheck.includes(element[0])? index : undefined).filter(x => x!= undefined);
 
                     if(ocurrences != undefined && ocurrences.length > 0) {
@@ -55,16 +69,9 @@ class MathExpression extends InputMethod {
                         
                         let opIndex = ocurrences[0];
                         let operator = operators[opIndex];
-
-                        
-                        if(expression.charAt(0) == operator) {
-                            operators.splice(opIndex, 1);
-                            numbers[0] *= parseInt(operator + "1");
-                        }
-
                         let n1 = numbers[opIndex];
                         let n2 = numbers[opIndex+1];
-                        Logger.log("Processing: " + n1 + " " + operator + " " + n2)
+                        Logger.log("\nProcessing: " + n1 + " " + operator + " " + n2)
                         const result = await this.callMathFunction(operator, [n1, n2]);
                         Logger.log("Result: " + result)
 
