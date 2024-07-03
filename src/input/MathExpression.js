@@ -1,6 +1,13 @@
 import InputMethod from "./InputMethod.js";
 import Logger from "../common/Logger.js";
-import {operationsPriorityOrder, orderMarkers, allMarkers, closeMarkers, isNumberRegex, isOperatorRegex} from "../data/shared.js"
+import {operationsPriorityOrder, 
+        orderMarkers, 
+        allMarkers, 
+        closeMarkers, 
+        isNumberRegex, 
+        isOperatorRegex,
+        isFunctionRegex,
+        debugArray} from "../data/shared.js"
 
 class MathExpression extends InputMethod {
 
@@ -9,20 +16,20 @@ class MathExpression extends InputMethod {
     }
 
 
-    handleDoubleOperators(operators, numbers) {
+    handleDoubleOperators(numbers, operators) {
 
-        let doubleOperators = operators.map((operator, index) => operator.length > 1 ? index: undefined).filter(x => x != undefined);
+        let doubleOperators = operators.map((operator, index) => operator[0].length > 1 ? index: undefined).filter(x => x != undefined);
 
         if(doubleOperators != undefined && doubleOperators.length > 0) {
-            Logger.log("doubleOperators:" + doubleOperators.toString());
+            Logger.log("doubleOperators:" + debugArray(doubleOperators));
 
             doubleOperators.forEach(index => {
-                numbers[index+1] = parseInt(operators[index].charAt(1) + "1") * numbers[index+1];
-                operators[index] = operators[index].charAt(0);
+                numbers[index+1][0] = parseInt(operators[index][0].charAt(1) + "1") * numbers[index+1][0];
+                operators[index][0] = operators[index][0].charAt(0);
             }, this);
     
-            Logger.log("doubleOperators updated numbers:" + numbers.toString());
-            Logger.log("doubleOperators updated operators:" + operators.toString());            
+            Logger.log("doubleOperators updated numbers:" + debugArray(numbers));
+            Logger.log("doubleOperators updated operators:" + debugArray(operators));            
         }
 
     }
@@ -33,23 +40,38 @@ class MathExpression extends InputMethod {
         Logger.log("First exp char:" + expression.charAt(0) + " <- is operator ? -> " + isFirstCharOperator);
         if(isFirstCharOperator) {
             operators.splice(0, 1);
-            numbers[0] *= parseInt(expression.charAt(0) + "1");
-            Logger.log("\nChanged Numbers:" + numbers.toString());
-            Logger.log("Changed Operators:" + operators.toString());
+            numbers[0][0] *= parseInt(expression.charAt(0) + "1");
+            Logger.log("\nChanged Numbers:" + debugArray(numbers));
+            Logger.log("Changed Operators:" + debugArray(operators));
         }
 
     }
 
-    async solve(expression) {
+    async solveFunctions(numbers, functions) {
+        
+        for(let i=0;i<functions.length;i++) {
+            let functionName = functions[i];
+            Logger.log("trying to load function: " + functionName[0]);
 
-        let numbers = [...expression.matchAll(isNumberRegex)].map((num) => parseFloat(num));
-        Logger.log("\nNumbers:" + numbers.toString());
+            let paramsQty = await this.retrieveParamsCount(functionName[0]);
 
-        let operators = [...expression.matchAll(isOperatorRegex)].map((operator) => operator.toString());
-        this.handleDoubleOperators(operators, numbers);
-        Logger.log("Operators:" + operators.toString());
+            Logger.log("function param count:" + paramsQty);
+            
+            let selectedNumbers = numbers.filter( x => x[1] > functions[1]).slice(0, paramsQty);
 
-        this.handleFirstCharOperator(numbers, operators, expression);
+            let params = selectedNumbers.map(x => x[0]);
+            Logger.log("function "+functionName[0]+" params:" + debugArray(params));
+            const result = await this.callMathFunction(params);
+            this.resetMathFunction();
+
+            numbers.splice(0,0,[result, functionName[1]]);
+            Logger.log("updated numbers after function "+functionName[0]+":" + debugArray(numbers));
+            
+        }
+
+    }
+
+    async solveOperations(numbers, operators) {
 
         while(operators.length > 0) {
 
@@ -60,31 +82,29 @@ class MathExpression extends InputMethod {
                 Logger.log("\operationsToCheck: " + operationsToCheck.toString());
                 let ocurrences = [];
 
-                do {
-                    
-                    ocurrences = operators.map((element, index) => operationsToCheck.includes(element[0])? index : undefined).filter(x => x!= undefined);
+                do {                    
+                    ocurrences = operators.map((element, index) => operationsToCheck.includes(element[0][0])? index : undefined).filter(x => x!= undefined);
 
                     if(ocurrences != undefined && ocurrences.length > 0) {
                         Logger.log("Ocurrences: " + ocurrences.toString());
 
                         let opIndex = ocurrences[0];
-                        let operator = operators[opIndex];
+                        let operator = operators[opIndex][0];
                         let paramsQty = await this.retrieveParamsCount(operator);
-                        let params = numbers.slice(opIndex, opIndex+paramsQty);
+                        let params = numbers.slice(opIndex, opIndex+paramsQty).map(x => 1*x[0]);
 
                         Logger.log("Operator: " + operator + " params count: " + paramsQty);
-                        Logger.log("\nProcessing: " + operator + " with params " + params.toString());
+                        Logger.log("\nProcessing: " + operator + " with params " + debugArray(params));
                         const result = await this.callMathFunction(params);
                         Logger.log("Result: " + result)
                         this.resetMathFunction();
 
-                        numbers[opIndex] = result;
-                        numbers.splice(opIndex+1, 1);
-
+                        numbers[opIndex][0] = result;
+                        numbers.splice(opIndex+1, paramsQty-1);
                         operators.splice(opIndex, 1);
                         
-                        Logger.log("\n\nUpdated Operators array: " + operators.toString());
-                        Logger.log("Updated NUmbers array: " + numbers.toString());
+                        Logger.log("\n\nUpdated Operators array: " + debugArray(operators));
+                        Logger.log("Updated NUmbers array: " + debugArray(numbers));
                     }
     
 
@@ -92,8 +112,50 @@ class MathExpression extends InputMethod {
 
             }
         }
+    }
 
-        return numbers.pop();
+
+    extract(expression, regex) {
+        let extractedSymbols = [];
+        let match;
+
+        while ((match = regex.exec(expression)) !== null) {
+            extractedSymbols.push([match[0], match.index]);
+        }
+
+        return extractedSymbols;
+    }
+
+    extractNumbers(expression) {
+        return this.extract(expression, isNumberRegex);
+    }
+
+    extractOperators(expression) {
+        return this.extract(expression, isOperatorRegex);
+    }
+
+    extractFunctions(expression) {
+        return this.extract(expression, isFunctionRegex);
+    }
+
+    async solve(expression) {
+
+        let numbers = this.extractNumbers(expression);
+        Logger.log("\nNumbers:" + debugArray(numbers));
+
+        let operators = this.extractOperators(expression);
+
+        this.handleDoubleOperators(numbers, operators);
+        this.handleFirstCharOperator(numbers, operators, expression);
+        Logger.log("Operators:" + debugArray(operators));
+
+        let functions = this.extractFunctions(expression);
+        Logger.log("Functions:" + debugArray(functions));
+
+        await this.solveFunctions(numbers, functions);
+        await this.solveOperations(numbers, operators);
+
+        return numbers.pop()[0];
     }
 
     getCloseMarkerIndex(openMarkerIndex, expression) {
@@ -108,7 +170,7 @@ class MathExpression extends InputMethod {
     }
 
     async processSubExpression(expression) {
-        Logger.log("\n\n============ processSubExpression iteration " + expression + " ============");
+        Logger.log("\n\n=== SubExpression iteration " + expression + " ===");
 
         if(this.isSeparator(expression.charAt(0)) && this.getCloseMarkerIndex(0, expression) == (expression.length-1)) {
             expression = expression.substring(1,expression.length-1);
@@ -175,19 +237,17 @@ class MathExpression extends InputMethod {
 
     async process(req) {
 
+        Logger.log("\n\n============ Started process ============");
         Logger.log("Original expression: " + req.query);
-        let query = this.formatQuery(req.query);
+        let query = this.formatQuery(req.query).toLowerCase();
         Logger.log("Expression after format: " + query);
 
         const finalResult = await this.processSubExpression(query)
 
-        const endDateTime = Date.now();
         Logger.log("\n\nFinal result:" + finalResult);
 
         return finalResult;
     }
-
-
 
 }
 

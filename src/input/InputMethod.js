@@ -36,7 +36,7 @@ class InputMethod {
             await this.retrieveMathFunction(key);
         }
         
-        const result = this.mathFunction.execute(params);
+        let result = this.mathFunction.execute(params);
 
         return result;
     }
