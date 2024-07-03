@@ -66,14 +66,17 @@ class MathExpression extends InputMethod {
 
                     if(ocurrences != undefined && ocurrences.length > 0) {
                         Logger.log("Ocurrences: " + ocurrences.toString());
-                        
+
                         let opIndex = ocurrences[0];
                         let operator = operators[opIndex];
-                        let n1 = numbers[opIndex];
-                        let n2 = numbers[opIndex+1];
-                        Logger.log("\nProcessing: " + n1 + " " + operator + " " + n2)
-                        const result = await this.callMathFunction(operator, [n1, n2]);
+                        let paramsQty = await this.retrieveParamsCount(operator);
+                        let params = numbers.slice(opIndex, opIndex+paramsQty);
+
+                        Logger.log("Operator: " + operator + " params count: " + paramsQty);
+                        Logger.log("\nProcessing: " + operator + " with params " + params.toString());
+                        const result = await this.callMathFunction(params);
                         Logger.log("Result: " + result)
+                        this.resetMathFunction();
 
                         numbers[opIndex] = result;
                         numbers.splice(opIndex+1, 1);

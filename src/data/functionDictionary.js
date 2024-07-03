@@ -4,6 +4,7 @@ const functionDictionary = {
     "*" : "math/operators/Multiply",
     "/" : "math/operators/Divide",
     "^" : "math/operators/Power",
+    "!" : "math/operators/Factorial"
 }
 
 export default functionDictionary;
