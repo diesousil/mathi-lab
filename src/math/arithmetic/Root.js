@@ -9,7 +9,7 @@ class Root extends MathFunction{
     execute(params) {
 
         let base = params[0];
-        let expoent = 1/parseFloat(params[0]);
+        let expoent = 1/parseFloat(params[1]);
 
         return Math.pow(base, expoent);
 

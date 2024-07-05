@@ -9,6 +9,8 @@ const functionDictionary = {
     "cos": "math/trigonometry/Cos",
     "tan": "math/trigonometry/Tan",
     "sin": "math/trigonometry/Sin",
+    "root": "math/arithmetic/Root",
+    "log": "math/arithmetic/Log",
 }
 
 export default functionDictionary;
