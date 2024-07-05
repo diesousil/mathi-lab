@@ -1,0 +1,21 @@
+- There are addtional test situations which fails
+
+- Implement debug level for separating notices from debug
+
+- Ensure functionDictionary has valid entries (maybe should be dinamically generated, or even created on build)
+
+- Expression validation system
+    - Validate input syntax before running the solver
+
+- Equation solver
+
+- Inequation solver
+
+- System of equations solving
+
+- Math function definition
+    - Plot 2d function
+    - Plot 3d function
+    - Derivative, Integration
+
+- Then start to test algorithms to search max and minimuns for a second phase

@@ -8,7 +8,9 @@ import {
     isNumberRegex,
     isOperatorRegex,
     isFunctionRegex,
-    debugArray
+    isFunctionWithParameterRegex,
+    debugArray, 
+    removeSpaces
 } from "../data/shared.js";
 
 class MathExpression extends InputMethod {
@@ -43,24 +45,50 @@ class MathExpression extends InputMethod {
         }
     }
 
-    async solveFunctions(numbers, functions) {
+    async solveFunctions(numbers, operators, functions, functionParameterMarkers, expression) {
         for (let i = 0; i < functions.length; i++) {
-            const functionName = functions[i];
-            Logger.log("trying to load function: " + functionName[0]);
 
+
+            let functionName = functions[i];
+            Logger.log("trying to load function: " + functionName[0]);
             const paramsQty = await this.retrieveParamsCount(functionName[0]);
+
             Logger.log("function param count:" + paramsQty);
 
-            const selectedNumbers = numbers.filter(x => x[1] > functions[1]).slice(0, paramsQty);
-            const params = selectedNumbers.map(x => x[0]);
-            Logger.log("function " + functionName[0] + " params:" + debugArray(params));
+            let paramValues = [];
 
-            const result = await this.callMathFunction(params);
+            if(paramsQty > 0) {
+                let openMarkerParamIndex = functionParameterMarkers[i*2];
+                let closeMarkerParamIndex = functionParameterMarkers[i*2+1];
+                let paramExpressions = expression.substring(openMarkerParamIndex+1, closeMarkerParamIndex).split(',');
+
+                Logger.log("function "+functionName[0]+" params: " + debugArray(paramExpressions));
+
+
+                let paramExpressionProcessor = new MathExpression();
+                for(let j=0;j<paramExpressions.length;j++) {                    
+                    let paramValueResult = await paramExpressionProcessor.process({query: paramExpressions[j]});
+                    paramValues.push(paramValueResult);
+                    paramExpressionProcessor.resetMathFunction();
+                }
+
+                numbers = numbers.filter( (number) => number[1] < openMarkerParamIndex || number[1] > closeMarkerParamIndex  );
+                Logger.log("updated numbers after function " + functionName[0] + ":" + debugArray(numbers));
+
+                operators = operators.filter( (operator) => operator[1] < openMarkerParamIndex || operator[1] > closeMarkerParamIndex  );
+                Logger.log("updated operators after function " + functionName[0] + ":" + debugArray(operators));
+            }
+
+            Logger.log("function "+functionName[0]+" param values: " + debugArray(paramValues));
+
+            const result = await this.callMathFunction(paramValues);
             this.resetMathFunction();
-
             numbers.splice(0, 0, [result, functionName[1]]);
-            Logger.log("updated numbers after function " + functionName[0] + ":" + debugArray(numbers));
+            Logger.log("updated numbers with function " + functionName[0] + " result:" + debugArray(numbers));
+
         }
+
+        return [numbers, operators];
     }
 
     async solveOperations(numbers, operators) {
@@ -116,11 +144,33 @@ class MathExpression extends InputMethod {
         return this.extract(expression, isOperatorRegex);
     }
 
-    extractFunctions(expression) {
-        return this.extract(expression, isFunctionRegex);
+    extractFunctions(expression, functionParameterMarkers) {
+        let functions = this.extract(expression, isFunctionRegex);
+        let extractedFunctions = [];
+
+        for(let i=0;i<functions.length;i++) {
+            let isSubfunction = false;
+            let testedFunction = functions[i];
+
+            Logger.log(testedFunction[0] + " is a subfunction?");
+
+            for(let j=0;functionParameterMarkers[j] < testedFunction[1];j+=2) {
+                if(testedFunction[1] > functionParameterMarkers[j] && testedFunction[1] < functionParameterMarkers[j+1]) {
+                    Logger.log("yes");
+                    isSubfunction = true;
+                }
+            }
+
+            if(!isSubfunction) {
+                Logger.log("no");
+                extractedFunctions.push(testedFunction);
+            }
+        }
+
+        return extractedFunctions;
     }
 
-    async solve(expression) {
+    async solve(expression, functionParameterMarkers) {
         let numbers = this.extractNumbers(expression);
         Logger.log("\nNumbers:" + debugArray(numbers));
 
@@ -129,11 +179,15 @@ class MathExpression extends InputMethod {
         this.handleFirstCharOperator(numbers, operators, expression);
         Logger.log("Operators:" + debugArray(operators));
 
-        const functions = this.extractFunctions(expression);
+        let functions = this.extractFunctions(expression, functionParameterMarkers);
         Logger.log("Functions:" + debugArray(functions));
 
-        await this.solveFunctions(numbers, functions);
+        [numbers, operators] = await this.solveFunctions(numbers, operators, functions, functionParameterMarkers, expression);
+
+        Logger.log("almost final numbers arr:" + debugArray(numbers));
         await this.solveOperations(numbers, operators);
+
+        Logger.log("final numbers arr:" + debugArray(numbers));
 
         return numbers.pop()[0];
     }
@@ -148,6 +202,42 @@ class MathExpression extends InputMethod {
         return (allMarkers.indexOf(charValue) >= 0);
     }
 
+
+    retrieveFunctionParameterMarkers(expression) {
+        const indexes = [];
+        let match;
+        while ((match = isFunctionWithParameterRegex.exec(expression)) !== null) {
+            let functionIndex = match.index;
+            let openMarkerIndex;
+            let closeMarkerIndex;
+            let i = functionIndex;
+            
+            while(expression.charAt(i) != '(') {
+                Logger.log(expression.charAt(i));
+                i++;
+            }
+            
+            openMarkerIndex = i;
+            let qtOpenMarker = 1;
+
+            while(qtOpenMarker > 0) {
+
+                i++;
+                Logger.log(expression.charAt(i));
+                Logger.log(qtOpenMarker);
+                if(expression.charAt(i) == '(') {
+                    qtOpenMarker+=1;
+                } else if(expression.charAt(i) == ')') {
+                    qtOpenMarker-=1;
+                }
+            }
+            closeMarkerIndex = i;
+            indexes.push(openMarkerIndex, closeMarkerIndex);
+        }
+
+        return indexes;
+    }
+
     async processSubExpression(expression) {
         Logger.log("\n\n=== SubExpression iteration " + expression + " ===");
 
@@ -156,12 +246,14 @@ class MathExpression extends InputMethod {
             Logger.log("(Sub)Expression without markers: " + expression);
         }
 
-        let subexpressionallMarkers = [...expression].map((expressionChar, index) => (this.isSeparator(expressionChar) ? index : undefined)).filter(x => x != undefined);
+        let functionParameterMarkers = this.retrieveFunctionParameterMarkers(expression);
+        Logger.log("functionParameterMarkers: " + debugArray(functionParameterMarkers));
+        let subexpressionaMarkers = [...expression].map((expressionChar, index) => (!functionParameterMarkers.includes(index) && this.isSeparator(expressionChar) ? index : undefined)).filter(x => x != undefined);
 
-        while (subexpressionallMarkers && subexpressionallMarkers.length > 0) {
-            Logger.log("\n\nsubexpressionallMarkers:" + subexpressionallMarkers.toString());
+        while (subexpressionaMarkers && subexpressionaMarkers.length > 0) {
+            Logger.log("\n\nsubexpressionMarkers:" + subexpressionaMarkers.toString());
 
-            const openMarkerIndex = subexpressionallMarkers[0];
+            const openMarkerIndex = subexpressionaMarkers[0];
             const closeMarkerIndex = this.getCloseMarkerIndex(openMarkerIndex, expression);
             const subExpresion = expression.substring(openMarkerIndex, closeMarkerIndex + 1);
 
@@ -173,13 +265,13 @@ class MathExpression extends InputMethod {
             expression = expression.replace(subExpresion, partialResult);
             Logger.log("updated expression:" + expression);
 
-            Logger.log("before update subexpressionallMarkers:" + subexpressionallMarkers);
+            Logger.log("before update subexpressionMarkers:" + subexpressionaMarkers);
             const expressionLengthDiff = (closeMarkerIndex - openMarkerIndex) - partialResult.toString().length + 1;
-            subexpressionallMarkers = subexpressionallMarkers.filter(value => value < openMarkerIndex || value > closeMarkerIndex).map(value => value - expressionLengthDiff);
-            Logger.log("updated subexpressionallMarkers:" + subexpressionallMarkers);
+            subexpressionaMarkers = subexpressionaMarkers.filter(value => value < openMarkerIndex || value > closeMarkerIndex).map(value => value - expressionLengthDiff);
+            Logger.log("updated subexpressionMarkers:" + subexpressionaMarkers);
         }
 
-        return this.solve(expression);
+        return this.solve(expression, functionParameterMarkers);
     }
 
     isNumericChar(chr) {
@@ -209,7 +301,7 @@ class MathExpression extends InputMethod {
             }
         }
 
-        return query;
+        return removeSpaces(query);
     }
 
     async process(req) {
