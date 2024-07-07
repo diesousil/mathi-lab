@@ -10,7 +10,8 @@ import {
     isFunctionRegex,
     isFunctionWithParameterRegex,
     debugArray, 
-    removeSpaces
+    removeSpaces,
+    splitOutsideParentheses
 } from "../data/shared.js";
 
 class MathExpression extends InputMethod {
@@ -60,7 +61,7 @@ class MathExpression extends InputMethod {
             if(paramsQty > 0) {
                 let openMarkerParamIndex = functionParameterMarkers[i*2];
                 let closeMarkerParamIndex = functionParameterMarkers[i*2+1];
-                let paramExpressions = expression.substring(openMarkerParamIndex+1, closeMarkerParamIndex).split(',');
+                let paramExpressions = splitOutsideParentheses(expression.substring(openMarkerParamIndex+1, closeMarkerParamIndex));
 
                 Logger.log("function "+functionName[0]+" params: " + debugArray(paramExpressions));
 

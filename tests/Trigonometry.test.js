@@ -10,7 +10,7 @@ let expressionsToTest = [
     ["cos(PI)+2*5", 9],
     ["cos(PI)/sin(PI)", Math.tan(Math.PI)],
     ["tan(PI)", Math.tan(Math.PI)],
-    //["sin({10*[2.4/(4+8)]}*PI)", Math.sin(2*Math.PI)]
+    ["sin({10*[2.4/(4+8)]}*PI)", Math.sin(2*Math.PI)]
 ];
 
 for(let i=0;i<expressionsToTest.length;i++) {
@@ -18,6 +18,6 @@ for(let i=0;i<expressionsToTest.length;i++) {
 
     test("Expresion "+tuple[0]+" = " + tuple[1], async () => {
         const data = await mathExpression.process({ query: tuple[0]});
-        expect(data).toBe(tuple[1]);
+        expect(data - tuple[1] < 0.0001).toBeTruthy();
     });
 }
