@@ -267,10 +267,15 @@ class MathExpression extends InputMethod {
             Logger.log("updated expression:" + expression);
 
             Logger.log("before update subexpressionMarkers:" + subexpressionaMarkers);
+            Logger.log("openMarkerIndex:" + openMarkerIndex);
+            Logger.log("closeMarkerIndex:" + closeMarkerIndex);
             const expressionLengthDiff = (closeMarkerIndex - openMarkerIndex) - partialResult.toString().length + 1;
+            Logger.log("expressionLengthDiff:" + expressionLengthDiff);
             subexpressionaMarkers = subexpressionaMarkers.filter(value => value < openMarkerIndex || value > closeMarkerIndex).map(value => value - expressionLengthDiff);
             Logger.log("updated subexpressionMarkers:" + subexpressionaMarkers);
         }
+
+        functionParameterMarkers = this.retrieveFunctionParameterMarkers(expression);
 
         return this.solve(expression, functionParameterMarkers);
     }
