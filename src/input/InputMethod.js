@@ -5,11 +5,11 @@ class InputMethod {
 
     constructor() {
         this.mathFunction = null;
-        Logger.log("Loading input method: " + this.constructor.name);
+        Logger.debug("Loading input method: " + this.constructor.name);
     }
 
     async retrieveMathFunction(key) {
-        Logger.log("Loading math function: " + functionDictionary[key])
+        Logger.debug("Loading math function: " + functionDictionary[key])
         const classToImport = "../" + functionDictionary[key] + ".js";
         const mathMethodClass = await import(classToImport)
 

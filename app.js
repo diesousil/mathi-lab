@@ -1,3 +1,6 @@
 import Server from "./src/server/Server.js";
 
-const appServer = new Server(3000);
+import * as dotenv from 'dotenv';
+dotenv.config();
+
+const appServer = new Server(process.env.PORT);

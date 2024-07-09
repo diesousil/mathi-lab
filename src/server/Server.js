@@ -14,7 +14,7 @@ class Server {
     start() {
         var app = Express();
         app.listen(this.port, () => {
-            Logger.log("Server running on port " + this.port);
+            Logger.debug("Server running on port " + this.port);
         }, this);
 
         return app;
@@ -30,13 +30,13 @@ class Server {
 
     expresssionInput(query, res) {
         const startDateTime = Date.now();
-        Logger.log("Started: " + startDateTime.toString());
+        Logger.debug("Started: " + startDateTime.toString());
     
         let inputMethod = new ExpressionInputMethod();
         inputMethod.process(query).then(function(result) {
 
             const endDateTime = Date.now();
-            Logger.log("Ended: " + endDateTime.toString());
+            Logger.debug("Ended: " + endDateTime.toString());
                 
             res.json(new Response(Response.Success, result, "", endDateTime-startDateTime));
         });

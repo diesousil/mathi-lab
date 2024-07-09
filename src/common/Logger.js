@@ -1,8 +1,27 @@
-import fileHandler from "node:fs";
+import { createLogger, format, transports } from 'winston';
+import * as dotenv from 'dotenv';
 
-export default class Logger {
-    static log(message) {
-        fileHandler.writeFileSync("main.log","\n" + message, { flag: 'a+' });
-        //console.log(message);
-    }
-}
+const { combine, timestamp, printf, colorize } = format;
+dotenv.config();
+
+const logLevel = process.env.LOG_LEVEL || 'info';
+console.log("Set logLevel as:"+ logLevel);
+
+const logFormat = printf(({ level, message, timestamp }) => {
+  return `${timestamp} ${level}: ${message}`;
+});
+
+const logger = createLogger({
+  level: logLevel,
+  format: combine(
+    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    colorize(),
+    logFormat
+  ),
+  transports: [
+    //new transports.Console(),
+    new transports.File({ filename: 'app.log' })
+  ]
+});
+
+export default logger;
