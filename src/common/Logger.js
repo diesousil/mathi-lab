@@ -4,6 +4,9 @@ import * as dotenv from 'dotenv';
 const { combine, timestamp, printf, colorize } = format;
 dotenv.config();
 
+const logFilename = process.env.LOG_FILENAME || 'app.log'; 
+console.log("Log filename:"+ logFilename);
+
 const logLevel = process.env.LOG_LEVEL || 'info';
 console.log("Set logLevel as:"+ logLevel);
 
@@ -20,7 +23,7 @@ const logger = createLogger({
   ),
   transports: [
     //new transports.Console(),
-    new transports.File({ filename: 'app.log' })
+    new transports.File({ filename: logFilename })
   ]
 });
 

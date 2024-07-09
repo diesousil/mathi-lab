@@ -1,6 +1,4 @@
-- There are addtional test situations which fails
-
-- Implement debug level for separating notices from debug
+- Change clean script with this solution: https://stackoverflow.com/questions/34650527/how-to-use-environment-variables-in-package-json
 
 - Ensure functionDictionary has valid entries (maybe should be dinamically generated, or even created on build)
 
