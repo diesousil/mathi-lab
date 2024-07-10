@@ -6,7 +6,9 @@ let mathExpression = new MathExpression();
 let expressionsToTest = [
     ["log(4,2)",2],
     ["root(8,3)",2],
-    ["root(8,log(27,3))",2]
+    ["root(8,log(27,3))",2],
+    ["mod(-12)+mod(12)",24],
+    //["-mod(-12)",-12]
 ];
 
 for(let i=0;i<expressionsToTest.length;i++) {
