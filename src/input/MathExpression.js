@@ -1,18 +1,6 @@
 import InputMethod from "./InputMethod.js";
 import Logger from "../common/Logger.js";
-import {
-    operationsPriorityOrder,
-    orderMarkers,
-    allMarkers,
-    closeMarkers,
-    isNumberRegex,
-    isOperatorRegex,
-    isFunctionRegex,
-    isFunctionWithParameterRegex,
-    debugArray, 
-    removeSpaces,
-    splitOutsideParentheses
-} from "../data/shared.js";
+import * as shared from "../data/shared.js";
 
 class MathExpression extends InputMethod {
     constructor() {
@@ -23,26 +11,26 @@ class MathExpression extends InputMethod {
         const doubleOperators = operators.map((operator, index) => operator[0].length > 1 ? index : undefined).filter(x => x != undefined);
 
         if (doubleOperators && doubleOperators.length > 0) {
-            Logger.debug("doubleOperators:" + debugArray(doubleOperators));
+            Logger.debug("doubleOperators:" + shared.debugArray(doubleOperators));
 
             doubleOperators.forEach(index => {
                 numbers[index + 1][0] = parseInt(operators[index][0].charAt(1) + "1") * numbers[index + 1][0];
                 operators[index][0] = operators[index][0].charAt(0);
             });
 
-            Logger.debug("doubleOperators updated numbers:" + debugArray(numbers));
-            Logger.debug("doubleOperators updated operators:" + debugArray(operators));
+            Logger.debug("doubleOperators updated numbers:" + shared.debugArray(numbers));
+            Logger.debug("doubleOperators updated operators:" + shared.debugArray(operators));
         }
     }
 
     handleFirstCharOperator(numbers, operators, expression) {
-        const isFirstCharOperator = (expression.charAt(0).match(isOperatorRegex) != null);
+        const isFirstCharOperator = (expression.charAt(0).match(shared.isOperatorRegex) != null);
         Logger.debug("First exp char:" + expression.charAt(0) + " <- is operator ? -> " + isFirstCharOperator);
         if (isFirstCharOperator) {
             operators.splice(0, 1);
             numbers[0][0] *= parseInt(expression.charAt(0) + "1");
-            Logger.debug("Changed Numbers:" + debugArray(numbers));
-            Logger.debug("Changed Operators:" + debugArray(operators));
+            Logger.debug("Changed Numbers:" + shared.debugArray(numbers));
+            Logger.debug("Changed Operators:" + shared.debugArray(operators));
         }
     }
 
@@ -61,9 +49,9 @@ class MathExpression extends InputMethod {
             if(paramsQty > 0) {
                 let openMarkerParamIndex = functionParameterMarkers[i*2];
                 let closeMarkerParamIndex = functionParameterMarkers[i*2+1];
-                let paramExpressions = splitOutsideParentheses(expression.substring(openMarkerParamIndex+1, closeMarkerParamIndex));
+                let paramExpressions = shared.splitOutsideParentheses(expression.substring(openMarkerParamIndex+1, closeMarkerParamIndex));
 
-                Logger.debug("function "+functionName[0]+" params: " + debugArray(paramExpressions));
+                Logger.debug("function "+functionName[0]+" params: " + shared.debugArray(paramExpressions));
 
 
                 let paramExpressionProcessor = new MathExpression();
@@ -74,18 +62,18 @@ class MathExpression extends InputMethod {
                 }
 
                 numbers = numbers.filter( (number) => number[1] < openMarkerParamIndex || number[1] > closeMarkerParamIndex  );
-                Logger.debug("updated numbers after function " + functionName[0] + ":" + debugArray(numbers));
+                Logger.debug("updated numbers after function " + functionName[0] + ":" + shared.debugArray(numbers));
 
                 operators = operators.filter( (operator) => operator[1] < openMarkerParamIndex || operator[1] > closeMarkerParamIndex  );
-                Logger.debug("updated operators after function " + functionName[0] + ":" + debugArray(operators));
+                Logger.debug("updated operators after function " + functionName[0] + ":" + shared.debugArray(operators));
             }
 
-            Logger.debug("function "+functionName[0]+" param values: " + debugArray(paramValues));
+            Logger.debug("function "+functionName[0]+" param values: " + shared.debugArray(paramValues));
 
             const result = await this.callMathFunction(paramValues);
             this.resetMathFunction();
             numbers.splice(0, 0, [result, functionName[1]]);
-            Logger.debug("updated numbers with function " + functionName[0] + " result:" + debugArray(numbers));
+            Logger.debug("updated numbers with function " + functionName[0] + " result:" + shared.debugArray(numbers));
 
         }
 
@@ -94,8 +82,8 @@ class MathExpression extends InputMethod {
 
     async solveOperations(numbers, operators) {
         while (operators.length > 0) {
-            for (let i = 0; i < operationsPriorityOrder.length; i++) {
-                const operationsToCheck = operationsPriorityOrder[i];
+            for (let i = 0; i < shared.operationsPriorityOrder.length; i++) {
+                const operationsToCheck = shared.operationsPriorityOrder[i];
                 Logger.debug("\operationsToCheck: " + operationsToCheck.toString());
 
                 let occurrences = [];
@@ -111,7 +99,7 @@ class MathExpression extends InputMethod {
                         const params = numbers.slice(opIndex, opIndex + paramsQty).map(x => 1 * x[0]);
 
                         Logger.debug("Operator: " + operator + " params count: " + paramsQty);
-                        Logger.debug("Processing: " + operator + " with params " + debugArray(params));
+                        Logger.debug("Processing: " + operator + " with params " + shared.debugArray(params));
                         const result = await this.callMathFunction(params);
                         Logger.debug("Result: " + result);
                         this.resetMathFunction();
@@ -120,94 +108,52 @@ class MathExpression extends InputMethod {
                         numbers.splice(opIndex + 1, paramsQty - 1);
                         operators.splice(opIndex, 1);
 
-                        Logger.debug("Updated Operators array: " + debugArray(operators));
-                        Logger.debug("Updated Numbers array: " + debugArray(numbers));
+                        Logger.debug("Updated Operators array: " + shared.debugArray(operators));
+                        Logger.debug("Updated Numbers array: " + shared.debugArray(numbers));
                     }
                 } while (occurrences.length > 0);
             }
         }
     }
 
-    extract(expression, regex) {
-        const extractedSymbols = [];
-        let match;
-        while ((match = regex.exec(expression)) !== null) {
-            extractedSymbols.push([match[0], match.index]);
-        }
-        return extractedSymbols;
-    }
-
-    extractNumbers(expression) {
-        return this.extract(expression, isNumberRegex);
-    }
-
-    extractOperators(expression) {
-        return this.extract(expression, isOperatorRegex);
-    }
-
-    extractFunctions(expression, functionParameterMarkers) {
-        let functions = this.extract(expression, isFunctionRegex);
-        let extractedFunctions = [];
-
-        for(let i=0;i<functions.length;i++) {
-            let isSubfunction = false;
-            let testedFunction = functions[i];
-
-            Logger.debug(testedFunction[0] + " is a subfunction?");
-
-            for(let j=0;functionParameterMarkers[j] < testedFunction[1];j+=2) {
-                if(testedFunction[1] > functionParameterMarkers[j] && testedFunction[1] < functionParameterMarkers[j+1]) {
-                    Logger.debug("yes");
-                    isSubfunction = true;
-                }
-            }
-
-            if(!isSubfunction) {
-                Logger.debug("no");
-                extractedFunctions.push(testedFunction);
-            }
-        }
-
-        return extractedFunctions;
-    }
-
+    
     async solve(expression, functionParameterMarkers) {
-        let numbers = this.extractNumbers(expression);
-        Logger.debug("Numbers:" + debugArray(numbers));
+        let numbers = shared.extractNumbers(expression);
+        Logger.debug("Numbers:" + shared.debugArray(numbers));
 
-        let operators = this.extractOperators(expression);
+        let operators = shared.extractOperators(expression);
         this.handleDoubleOperators(numbers, operators);
         this.handleFirstCharOperator(numbers, operators, expression);
-        Logger.debug("Operators:" + debugArray(operators));
+        Logger.debug("Operators:" + shared.debugArray(operators));
 
-        let functions = this.extractFunctions(expression, functionParameterMarkers);
-        Logger.debug("Functions:" + debugArray(functions));
+        let functions = shared.extractFunctions(expression, functionParameterMarkers);
+        Logger.debug("Functions:" + shared.debugArray(functions));
 
         [numbers, operators] = await this.solveFunctions(numbers, operators, functions, functionParameterMarkers, expression);
 
-        Logger.debug("almost final numbers arr:" + debugArray(numbers));
+        Logger.debug("almost final numbers arr:" + shared.debugArray(numbers));
         await this.solveOperations(numbers, operators);
 
-        Logger.debug("final numbers arr:" + debugArray(numbers));
+        Logger.debug("final numbers arr:" + shared.debugArray(numbers));
 
         return numbers.pop()[0];
     }
 
     getCloseMarkerIndex(openMarkerIndex, expression) {
         const openMarker = expression.charAt(openMarkerIndex);
-        const closeMarker = orderMarkers[openMarker];
+        const closeMarker = shared.orderMarkers[openMarker];
         return expression.indexOf(closeMarker, openMarkerIndex);
     }
 
     isSeparator(charValue) {
-        return (allMarkers.indexOf(charValue) >= 0);
+        return (shared.allMarkers.indexOf(charValue) >= 0);
     }
 
 
     retrieveFunctionParameterMarkers(expression) {
         const indexes = [];
         let match;
-        while ((match = isFunctionWithParameterRegex.exec(expression)) !== null) {
+        while ((match = shared.isFunctionWithParameterRegex.exec(expression)) !== null) {
             let functionIndex = match.index;
             let openMarkerIndex;
             let closeMarkerIndex;
@@ -248,7 +194,7 @@ class MathExpression extends InputMethod {
         }
 
         let functionParameterMarkers = this.retrieveFunctionParameterMarkers(expression);
-        Logger.debug("functionParameterMarkers: " + debugArray(functionParameterMarkers));
+        Logger.debug("functionParameterMarkers: " + shared.debugArray(functionParameterMarkers));
         let subexpressionaMarkers = [...expression].map((expressionChar, index) => (!functionParameterMarkers.includes(index) && this.isSeparator(expressionChar) ? index : undefined)).filter(x => x != undefined);
 
         while (subexpressionaMarkers && subexpressionaMarkers.length > 0) {
@@ -297,7 +243,7 @@ class MathExpression extends InputMethod {
             for (let i = 0; i < indexes.length; i++) {
                 let pos = indexes[i];
                 let wasFirstChar = true;
-                while (this.isNumericChar(query.charAt(pos)) || (wasFirstChar && closeMarkers.indexOf(query.charAt(pos)) >= 0)) {
+                while (this.isNumericChar(query.charAt(pos)) || (wasFirstChar && shared.closeMarkers.indexOf(query.charAt(pos)) >= 0)) {
                     pos += 1;
                     wasFirstChar = false;
                 }
@@ -307,7 +253,7 @@ class MathExpression extends InputMethod {
             }
         }
 
-        return removeSpaces(query);
+        return shared.removeSpaces(query);
     }
 
     async process(req) {

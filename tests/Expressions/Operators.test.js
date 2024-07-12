@@ -1,5 +1,5 @@
 import {jest} from '@jest/globals';
-import MathExpression from "../src/input/MathExpression";
+import MathExpression from "../../src/input/MathExpression";
 
 let mathExpression = new MathExpression();
 
@@ -25,6 +25,7 @@ let expressionsToTest = [
     ["[10(12-3)-7(3^3!*5*7)]-63",-178578],
     ["10%*20",2],
     ["10%",0.1],
+    ["-100%-1",-2],
 ];
 
 for(let i=0;i<expressionsToTest.length;i++) {

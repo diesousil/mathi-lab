@@ -26,6 +26,10 @@ class Server {
         app.get('/expression/:query', (req, res) => {
             this.expresssionInput(req.params, res);
           });
+
+        app.get('/equation/:query', (req, res) => {
+            this.equationInput(req.params, res);
+        });
     }
 
     expresssionInput(query, res) {
@@ -33,6 +37,20 @@ class Server {
         Logger.debug("Started: " + startDateTime.toString());
     
         let inputMethod = new ExpressionInputMethod();
+        inputMethod.process(query).then(function(result) {
+
+            const endDateTime = Date.now();
+            Logger.debug("Ended: " + endDateTime.toString());
+                
+            res.json(new Response(Response.Success, result, "", endDateTime-startDateTime));
+        });
+    }
+
+    expresssionInput(query, res) {
+        const startDateTime = Date.now();
+        Logger.debug("Started: " + startDateTime.toString());
+    
+        let inputMethod = new EquationInputMethod();
         inputMethod.process(query).then(function(result) {
 
             const endDateTime = Date.now();
