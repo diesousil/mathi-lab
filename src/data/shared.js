@@ -123,3 +123,43 @@ export function extractFunctions(expression, functionParameterMarkers) {
 
     return extractedFunctions;
 }
+
+export function isNumericChar(chr) {
+    const result = (chr.charCodeAt(0) >= "0".charCodeAt(0) && chr.charCodeAt(0) <= "9".charCodeAt(0));
+    Logger.debug("chr:" + chr);
+    Logger.debug("is digit?" + result);
+    return result;
+}
+
+export function formatQuery(query) {
+    const ereg = new RegExp("\\d+\\(|\\d+\\[|\\d+\\{|\\)\\(", "g");
+    let indexes = [...query.matchAll(ereg)].map(a => a.index);
+
+    if (indexes && indexes.length > 0) {
+        Logger.debug("Multiplication without symbol to replace:" + indexes.toString());
+
+        for (let i = 0; i < indexes.length; i++) {
+            let pos = indexes[i];
+            let wasFirstChar = true;
+            while (isNumericChar(query.charAt(pos)) || (wasFirstChar && closeMarkers.indexOf(query.charAt(pos)) >= 0)) {
+                pos += 1;
+                wasFirstChar = false;
+            }
+
+            query = query.substring(0, pos) + "*" + query.substring(pos);
+            indexes = indexes.map(value => value + 1);
+        }
+    }
+
+    return removeSpaces(query).toLowerCase();
+}
+
+export function getCloseMarkerIndex(openMarkerIndex, expression) {
+    const openMarker = expression.charAt(openMarkerIndex);
+    const closeMarker = shared.orderMarkers[openMarker];
+    return expression.indexOf(closeMarker, openMarkerIndex);
+}
+
+export function isSeparator(charValue) {
+    return (shared.allMarkers.indexOf(charValue) >= 0);
+}

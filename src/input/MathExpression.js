@@ -139,17 +139,6 @@ class MathExpression extends InputMethod {
         return numbers.pop()[0];
     }
 
-    getCloseMarkerIndex(openMarkerIndex, expression) {
-        const openMarker = expression.charAt(openMarkerIndex);
-        const closeMarker = shared.orderMarkers[openMarker];
-        return expression.indexOf(closeMarker, openMarkerIndex);
-    }
-
-    isSeparator(charValue) {
-        return (shared.allMarkers.indexOf(charValue) >= 0);
-    }
-
-
     retrieveFunctionParameterMarkers(expression) {
         const indexes = [];
         let match;
@@ -188,20 +177,20 @@ class MathExpression extends InputMethod {
     async processSubExpression(expression) {
         Logger.debug("=== SubExpression iteration " + expression + " ===");
 
-        if (this.isSeparator(expression.charAt(0)) && this.getCloseMarkerIndex(0, expression) == (expression.length - 1)) {
+        if (shared.isSeparator(expression.charAt(0)) && shared.getCloseMarkerIndex(0, expression) == (expression.length - 1)) {
             expression = expression.substring(1, expression.length - 1);
             Logger.debug("(Sub)Expression without markers: " + expression);
         }
 
         let functionParameterMarkers = this.retrieveFunctionParameterMarkers(expression);
         Logger.debug("functionParameterMarkers: " + shared.debugArray(functionParameterMarkers));
-        let subexpressionaMarkers = [...expression].map((expressionChar, index) => (!functionParameterMarkers.includes(index) && this.isSeparator(expressionChar) ? index : undefined)).filter(x => x != undefined);
+        let subexpressionaMarkers = [...expression].map((expressionChar, index) => (!functionParameterMarkers.includes(index) && shared.isSeparator(expressionChar) ? index : undefined)).filter(x => x != undefined);
 
         while (subexpressionaMarkers && subexpressionaMarkers.length > 0) {
             Logger.debug("subexpressionMarkers:" + subexpressionaMarkers.toString());
 
             const openMarkerIndex = subexpressionaMarkers[0];
-            const closeMarkerIndex = this.getCloseMarkerIndex(openMarkerIndex, expression);
+            const closeMarkerIndex = shared.getCloseMarkerIndex(openMarkerIndex, expression);
             const subExpresion = expression.substring(openMarkerIndex, closeMarkerIndex + 1);
 
             Logger.debug("subexpresion:" + subExpresion);
@@ -226,40 +215,14 @@ class MathExpression extends InputMethod {
         return this.solve(expression, functionParameterMarkers);
     }
 
-    isNumericChar(chr) {
-        const result = (chr.charCodeAt(0) >= "0".charCodeAt(0) && chr.charCodeAt(0) <= "9".charCodeAt(0));
-        Logger.debug("chr:" + chr);
-        Logger.debug("is digit?" + result);
-        return result;
-    }
+    
 
-    formatQuery(query) {
-        const ereg = new RegExp("\\d+\\(|\\d+\\[|\\d+\\{|\\)\\(", "g");
-        let indexes = [...query.matchAll(ereg)].map(a => a.index);
-
-        if (indexes && indexes.length > 0) {
-            Logger.debug("Multiplication without symbol to replace:" + indexes.toString());
-
-            for (let i = 0; i < indexes.length; i++) {
-                let pos = indexes[i];
-                let wasFirstChar = true;
-                while (this.isNumericChar(query.charAt(pos)) || (wasFirstChar && shared.closeMarkers.indexOf(query.charAt(pos)) >= 0)) {
-                    pos += 1;
-                    wasFirstChar = false;
-                }
-
-                query = query.substring(0, pos) + "*" + query.substring(pos);
-                indexes = indexes.map(value => value + 1);
-            }
-        }
-
-        return shared.removeSpaces(query);
-    }
+    
 
     async process(req) {
         Logger.debug("============ Started process ============");
         Logger.debug("Original expression: " + req.query);
-        const query = this.formatQuery(req.query).toLowerCase();
+        const query = shared.formatQuery(req.query);
         Logger.debug("Expression after format: " + query);
 
         const finalResult = await this.processSubExpression(query);

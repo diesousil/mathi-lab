@@ -104,7 +104,55 @@ class Equation extends InputMethod {
 
     }
 
+    extractNumberAndOperatorBefore(expression, openMarkerIndex) {
+        let operator = expression.charAt(openMarkerIndex-1);
+
+        let number = "";
+        for(let i=openMarkerIndex-2;i>=0;i--) {
+            let chr = expression.charAt(i);
+            if(shared.isNumericChar(chr) || chr == '.') {
+                number = chr + number;
+            }
+        }
+
+        return [parseFloat(number), operator];
+
+    }
+
+    processDistributive(expression, number = null, operator = null) {
+        Logger.debug("=== (Sub)Expression to process distributive: " + expression + " ===");
+
+        let expressionMarkers = [...expression].map((expressionChar, index) => (!functionParameterMarkers.includes(index) && shared.isSeparator(expressionChar) ? index : undefined)).filter(x => x != undefined);
+
+        while (expressionMarkers && expressionMarkers.length > 0) {
+
+            Logger.debug("expressionMarkers:" + shared.debugArray(expressionMarkers));
+
+            const openMarkerIndex = expressionMarkers[0];
+            const closeMarkerIndex = shared.getCloseMarkerIndex(openMarkerIndex, expression);
+            const subExpresion = expression.substring(openMarkerIndex+1, closeMarkerIndex);
+            let [subNumber, subOperator] = this.extractNumberAndOperator(expression, openMarkerIndex);
+
+            Logger.debug("subexpresion:" + subExpresion);
+            const distributedSubexpression = this.processDistributive(subExpresion, subNumber, subOperator);
+            expression = expression.replace(subExpresion, distributedSubexpression);
+            Logger.debug("updated expression:" + expression);
+
+            const expressionLengthDiff = (closeMarkerIndex - openMarkerIndex) - distributedSubexpression.toString().length + 1;
+            expressionMarkers = expressionMarkers.filter(value => value < openMarkerIndex || value > closeMarkerIndex).map(value => value - expressionLengthDiff);
+            Logger.debug("updated subexpressionMarkers:" + expressionMarkers);
+        }
+
+        
+
+        return this.solve(expression, functionParameterMarkers);
+    }
+
     simplify(leftExpression, rightExpression, maxIndex) {
+
+
+        this.processDistributive(expression);
+
 
 
         this.moveNumbers(leftExpression, rightExpression, maxIndex);
@@ -130,7 +178,7 @@ class Equation extends InputMethod {
     }
 
     async solve(query) {
-
+        
         let maxIndex = query.length;
 
         let [leftExpression, rightExpression] = query.split('=').map(x => this.extractCompents(x));
@@ -153,8 +201,7 @@ class Equation extends InputMethod {
     rebuildExpression(expressionArrays) {
 
         let expression = "";
-        let integratedArray = expressionArrays[0].concat(expressionArrays[1],expressionArrays[2]);
-        
+        let integratedArray = expressionArrays[0].concat(expressionArrays[1],expressionArrays[2]);        
         
         integratedArray = integratedArray.sort((a,b) => a[1]-b[1]);
         
@@ -169,7 +216,7 @@ class Equation extends InputMethod {
         Logger.info("== Started Equation process ==");
         Logger.debug("Original input: " + req.query);
 
-        let result = await this.solve(req.query);
+        let result = await this.solve(shared.formatQuery(req.query));
 
         Logger.debug("Final result: " + result);
 

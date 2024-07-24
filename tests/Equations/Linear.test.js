@@ -6,7 +6,9 @@ let equation = new Equation();
 let expressionsToTest = [
     ["x+5=10",5],
     ["x-5=10",15],
-    ["2*x+5=10",2.5]
+    ["2*x+5=10",2.5],
+    ["12*x-75=0",6.25],
+    ["2(68x-37.5)=0", 6.25]
 ];
 
 for(let i=0;i<expressionsToTest.length;i++) {
