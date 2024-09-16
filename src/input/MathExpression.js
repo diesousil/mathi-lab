@@ -34,6 +34,41 @@ class MathExpression extends InputMethod {
         }
     }
 
+    retrieveFunctionParameterMarkers(expression) {
+        const indexes = [];
+        let match;
+        while ((match = shared.isFunctionWithParameterRegex.exec(expression)) !== null) {
+            let functionIndex = match.index;
+            let openMarkerIndex;
+            let closeMarkerIndex;
+            let i = functionIndex;
+            
+            while(expression.charAt(i) != '(') {
+                Logger.debug(expression.charAt(i));
+                i++;
+            }
+            
+            openMarkerIndex = i;
+            let qtOpenMarker = 1;
+
+            while(qtOpenMarker > 0) {
+
+                i++;
+                Logger.debug(expression.charAt(i));
+                Logger.debug(qtOpenMarker);
+                if(expression.charAt(i) == '(') {
+                    qtOpenMarker+=1;
+                } else if(expression.charAt(i) == ')') {
+                    qtOpenMarker-=1;
+                }
+            }
+            closeMarkerIndex = i;
+            indexes.push(openMarkerIndex, closeMarkerIndex);
+        }
+
+        return indexes;
+    }
+
     async solveFunctions(numbers, operators, functions, functionParameterMarkers, expression) {
         for (let i = 0; i < functions.length; i++) {
 
@@ -139,41 +174,6 @@ class MathExpression extends InputMethod {
         return numbers.pop()[0];
     }
 
-    retrieveFunctionParameterMarkers(expression) {
-        const indexes = [];
-        let match;
-        while ((match = shared.isFunctionWithParameterRegex.exec(expression)) !== null) {
-            let functionIndex = match.index;
-            let openMarkerIndex;
-            let closeMarkerIndex;
-            let i = functionIndex;
-            
-            while(expression.charAt(i) != '(') {
-                Logger.debug(expression.charAt(i));
-                i++;
-            }
-            
-            openMarkerIndex = i;
-            let qtOpenMarker = 1;
-
-            while(qtOpenMarker > 0) {
-
-                i++;
-                Logger.debug(expression.charAt(i));
-                Logger.debug(qtOpenMarker);
-                if(expression.charAt(i) == '(') {
-                    qtOpenMarker+=1;
-                } else if(expression.charAt(i) == ')') {
-                    qtOpenMarker-=1;
-                }
-            }
-            closeMarkerIndex = i;
-            indexes.push(openMarkerIndex, closeMarkerIndex);
-        }
-
-        return indexes;
-    }
-
     async processSubExpression(expression) {
         Logger.debug("=== SubExpression iteration " + expression + " ===");
 
@@ -215,15 +215,13 @@ class MathExpression extends InputMethod {
         return this.solve(expression, functionParameterMarkers);
     }
 
-    
-
-    
-
     async process(req) {
+
         Logger.debug("============ Started process ============");
         Logger.debug("Original expression: " + req.query);
-        const query = shared.formatQuery(req.query);
-        Logger.debug("Expression after format: " + query);
+
+        const query = shared.formatWithImplicitOperators(req.query);
+        Logger.debug("Formatted expression : " + query);
 
         const finalResult = await this.processSubExpression(query);
         Logger.debug("Final result:" + finalResult);

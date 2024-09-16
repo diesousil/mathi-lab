@@ -23,7 +23,7 @@ export const inverseOperator = {
 
 export const openMarkers = "{[(";
 export const closeMarkers = ")]}";
-export const allMarkers = openMarkers + closeMarkers;;
+export const allMarkers = openMarkers + closeMarkers;
 
 export const isNumberRegex = /([0-9]+)([.][0-9]+)?/g;
 export const isOperatorRegex = /(?:(?=[^.A-Za-z\(\)])[\D])/g;
@@ -31,22 +31,13 @@ export const isFunctionRegex = /([a-z]+)/g;
 export const isFunctionWithParameterRegex = /[a-z]+\(/g;
 export const isVariableRegex = /(?<![a-zA-Z])[a-z](?![a-zA-Z])/g;
 
-export function debugArray(arrayVar) {
-    return JSON.stringify(arrayVar);
-}
-
-export function removeSpaces(str) {
-    return str.replace(/\s+/g, '');
-}
-
-// Love you chatgpt
 export function splitOutsideParentheses(input) {
-    // Match all commas and split positions, excluding those within parentheses
+
     let regex = /,|(\([^()]*\))/g;
     let matches = input.match(regex);
 
     if (!matches) {
-        return [input]; // No matches, return the input as a single element array
+        return [input];
     }
 
     let result = [];
@@ -56,12 +47,10 @@ export function splitOutsideParentheses(input) {
     for (let match of matches) {
         let index = input.indexOf(match, lastIndex);
 
-        if (match.startsWith('(')) {
-            // If the match is a parenthesis group, ignore it
+        if (match.startsWith('(')) {            
             lastIndex = index + match.length;
             continue;
         } else {
-            // If the match is a comma, store the position
             splitPositions.push(index);
             lastIndex = index + match.length;
         }
@@ -77,6 +66,25 @@ export function splitOutsideParentheses(input) {
     return result;
 }
 
+export function retrieveNumberBeforePosition(expression, index) {
+    let number = "";
+
+    let chrToTest = expression.charAt(--index);    
+    while (isNumericChar(chrToTest) || chrToTest == ".") {
+        number = number + chrToTest;
+        chrToTest = expression.charAt(--index);
+    }
+
+    return [parseFloat(number), index];
+
+}
+
+/**
+ * For a given expression, obtains internal elements identified by the given regular expression.
+ * @param {*} expression 
+ * @param {*} regex 
+ * @returns array with the extracted elements
+ */
 export function extract(expression, regex) {
     const extractedSymbols = [];
     let match;
@@ -124,42 +132,72 @@ export function extractFunctions(expression, functionParameterMarkers) {
     return extractedFunctions;
 }
 
+export function debugArray(arrayVar) {
+    return JSON.stringify(arrayVar);
+}
+
+export function removeSpaces(str) {
+    return str.replace(/\s+/g, '');
+}
+
 export function isNumericChar(chr) {
     const result = (chr.charCodeAt(0) >= "0".charCodeAt(0) && chr.charCodeAt(0) <= "9".charCodeAt(0));
-    Logger.debug("chr:" + chr);
-    Logger.debug("is digit?" + result);
     return result;
 }
 
-export function formatQuery(query) {
-    const ereg = new RegExp("\\d+\\(|\\d+\\[|\\d+\\{|\\)\\(", "g");
-    let indexes = [...query.matchAll(ereg)].map(a => a.index);
 
-    if (indexes && indexes.length > 0) {
-        Logger.debug("Multiplication without symbol to replace:" + indexes.toString());
-
-        for (let i = 0; i < indexes.length; i++) {
-            let pos = indexes[i];
-            let wasFirstChar = true;
-            while (isNumericChar(query.charAt(pos)) || (wasFirstChar && closeMarkers.indexOf(query.charAt(pos)) >= 0)) {
-                pos += 1;
-                wasFirstChar = false;
-            }
-
-            query = query.substring(0, pos) + "*" + query.substring(pos);
-            indexes = indexes.map(value => value + 1);
-        }
-    }
-
-    return removeSpaces(query).toLowerCase();
+export function isSeparator(charValue) {
+    return (allMarkers.indexOf(charValue) >= 0);
 }
 
 export function getCloseMarkerIndex(openMarkerIndex, expression) {
     const openMarker = expression.charAt(openMarkerIndex);
-    const closeMarker = shared.orderMarkers[openMarker];
+    const closeMarker = orderMarkers[openMarker];
     return expression.indexOf(closeMarker, openMarkerIndex);
 }
 
-export function isSeparator(charValue) {
-    return (shared.allMarkers.indexOf(charValue) >= 0);
+/**
+ * It expected for mathematical expressions some operators to be ommited. For example, for the expression 2x+5, there's a hidden multiply operator
+ * between 2 and x. The same happens between the close and open parenthesis on (2+5)(10+2) expression. This method make this operators explicit before
+ * the expression can be solved.
+ * @param {*} mathExpression mathematical expression
+ * @returns changed expressions with the previous hiddden operators made explicit
+ */
+export function formatWithImplicitOperators(mathExpression) {
+
+    const expressions= [
+        "\\d+\\(",
+        "\\d+\\[",
+        "\\d+\\{",
+        "\\d+[a-zA-Z]",
+        "\\)\\(",
+        "\\]\\(",
+        "\\}\\(",
+        "\\)\\[",
+        "\\]\\[",
+        "\\}\\[",
+        "\\)\\{",
+        "\\]\\{",
+        "\\}\\{"
+    ];
+
+    const ereg = new RegExp(expressions.join('|'), "g");
+    let indexes = [...mathExpression.matchAll(ereg)].map(a => a.index);
+
+    if (indexes && indexes.length > 0) {
+
+        for (let i = 0; i < indexes.length; i++) {
+            let pos = indexes[i];
+            let wasFirstChar = true;
+            while (isNumericChar(mathExpression.charAt(pos)) || (wasFirstChar && closeMarkers.indexOf(mathExpression.charAt(pos)) >= 0)) {
+                pos += 1;
+                wasFirstChar = false;
+            }
+
+            mathExpression = mathExpression.substring(0, pos) + "*" + mathExpression.substring(pos);
+            indexes = indexes.map(value => value + 1);
+        }
+    }
+
+    return removeSpaces(mathExpression).toLowerCase();
 }
