@@ -5,10 +5,7 @@ const { combine, timestamp, printf, colorize } = format;
 dotenv.config();
 
 const logFilename = process.env.LOG_FILENAME || 'app.log'; 
-console.log("Log filename:"+ logFilename);
-
 const logLevel = process.env.LOG_LEVEL || 'info';
-console.log("Set logLevel as:"+ logLevel);
 
 const logFormat = printf(({ level, message, timestamp }) => {
   return `${timestamp} ${level}: ${message}`;
