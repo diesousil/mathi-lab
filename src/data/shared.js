@@ -71,13 +71,44 @@ export function retrieveNumberBeforePosition(expression, index) {
 
     let chrToTest = expression.charAt(--index);    
     while (isNumericChar(chrToTest) || chrToTest == ".") {
-        number = number + chrToTest;
+        number = chrToTest + number;
         chrToTest = expression.charAt(--index);
     }
 
-    return [parseFloat(number), index];
-
+    return [parseFloat(number), index+1];
 }
+
+export function retrieveVariableBeforePosition(expression, index) {
+    let chr = "";
+
+    let chrToTest = expression.charAt(--index);    
+
+    if (isLetter(chrToTest))
+        chr = chrToTest; 
+
+    return [chr, index];
+}
+
+export function retrievePreviousFactor(expression, index) {
+    let [result, resultIndex] = retrieveNumberBeforePosition(expression, index);
+
+    if(!isNumberRegex.test(result)) {
+        [result, resultIndex] = retrieveVariableBeforePosition(expression, index);
+    }
+
+    return [result, resultIndex];
+}
+
+export function containsVariables(expression) {
+
+    return extract(expression, isVariableRegex).length > 0;
+}
+
+export function containsOperators(expression) {
+
+    return extract(expression, isOperatorRegex).length > 0;
+}
+
 
 /**
  * For a given expression, obtains internal elements identified by the given regular expression.
@@ -88,6 +119,7 @@ export function retrieveNumberBeforePosition(expression, index) {
 export function extract(expression, regex) {
     const extractedSymbols = [];
     let match;
+    regex.lastIndex = 0;
     while ((match = regex.exec(expression)) !== null) {
         extractedSymbols.push([match[0], match.index]);
     }
@@ -143,6 +175,9 @@ export function removeSpaces(str) {
 export function isNumericChar(chr) {
     const result = (chr.charCodeAt(0) >= "0".charCodeAt(0) && chr.charCodeAt(0) <= "9".charCodeAt(0));
     return result;
+}
+export function isLetter(chr) {
+    return isVariableRegex.test(chr);
 }
 
 

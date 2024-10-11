@@ -1,5 +1,6 @@
 import Express from "express";
 import ExpressionInputMethod from "../input/MathExpression.js";
+import EquationInputMethod from "../input/Equation.js";
 import Logger from "../common/Logger.js";
 import Response from "./Response.js";
 
@@ -15,6 +16,7 @@ class Server {
         var app = Express();
         app.listen(this.port, () => {
             Logger.debug("Server running on port " + this.port);
+            console.log("Server running on port " + this.port)
         }, this);
 
         return app;
@@ -32,11 +34,11 @@ class Server {
         });
     }
 
-    expresssionInput(query, res) {
+    equationInput(query, res) {
         const startDateTime = Date.now();
         Logger.debug("Started: " + startDateTime.toString());
     
-        let inputMethod = new ExpressionInputMethod();
+        let inputMethod = new EquationInputMethod();
         inputMethod.process(query).then(function(result) {
 
             const endDateTime = Date.now();
@@ -50,7 +52,7 @@ class Server {
         const startDateTime = Date.now();
         Logger.debug("Started: " + startDateTime.toString());
     
-        let inputMethod = new EquationInputMethod();
+        let inputMethod = new ExpressionInputMethod();
         inputMethod.process(query).then(function(result) {
 
             const endDateTime = Date.now();

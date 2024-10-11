@@ -108,53 +108,105 @@ class Equation extends InputMethod {
 
     }
 
-    processDistributive(expression, number = null, operator = null) {        
+    incrementAllIndexesBiggerThan(expressionArrs, pivotIndex, increment = 1) {
         
-        let expressionMarkers = [...expression].map((expressionChar, index) => (shared.isSeparator(expressionChar) ? index : undefined)).filter(x => x != undefined);
-        
-        while (expressionMarkers && expressionMarkers.length > 0) {
-            const openMarkerIndex = expressionMarkers[0];
-            const closeMarkerIndex = shared.getCloseMarkerIndex(openMarkerIndex, expression);
-            const subExpresion = expression.substring(openMarkerIndex+1, closeMarkerIndex);
-            const subExpressionOperator = expression.charAt(openMarkerIndex - 1);
-            const [subExpressionNumber, subExpressionNumberIndex] = shared.retrieveNumberBeforePosition(expression, openMarkerIndex-1);
-
-            let distributedSubExpression = this.processDistributive(subExpresion, subExpressionNumber, subExpressionOperator);
-
-            const subExpressionToReplace = expression.substring(subExpressionNumberIndex, openMarkerIndex + subExpresion.length + 2);
-            expression = expression.replace(subExpressionToReplace, distributedSubExpression);
-            
-            expressionMarkers = [...expression].map((expressionChar, index) => (shared.isSeparator(expressionChar) ? index : undefined)).filter(x => x != undefined);            
+        for(let i=0;i<expressionArrs.length;i++) {
+            for(let j=0;j<expressionArrs[i].length;j++) {
+                if(expressionArrs[i][j][1] > pivotIndex)
+                    expressionArrs[i][j][1]+=increment;
+            }
         }
 
-        if(number != null && operator != null) {
+    }
+
+    async processDistributive(expression, factor = null, operator = null) {       
+        
+        if(!shared.containsVariables(expression)) {
+            if(shared.containsOperators(expression)) {
+                expression =  await this.solveMathExpression(expression);
+            }
+        } else {
+            Logger.debug("\n\nStarting processDistributive: expression = "+expression+", factor="+factor+", operator="+operator);
+
+            let expressionMarkers = [...expression].map((expressionChar, index) => (shared.isSeparator(expressionChar) ? index : undefined)).filter(x => x != undefined);
+            Logger.debug("\nexpressionMarkers=" + shared.debugArray(expressionMarkers));
+            
+            while (expressionMarkers && expressionMarkers.length > 0) {
+                const openMarkerIndex = expressionMarkers[0];
+                Logger.debug("\nopenMarkerIndex=" + openMarkerIndex);
+                const closeMarkerIndex = shared.getCloseMarkerIndex(openMarkerIndex, expression);
+                Logger.debug("\ncloseMarkerIndex=" + closeMarkerIndex);
+                const subExpresion = expression.substring(openMarkerIndex+1, closeMarkerIndex);
+                Logger.debug("\nsubExpresion=" + subExpresion);
+                const subExpressionOperator = expression.charAt(openMarkerIndex - 1);
+                Logger.debug("\nsubExpressionOperator=" + subExpressionOperator);
+                const [subExpressionFactor, subExpressionFactorIndex] = shared.retrievePreviousFactor(expression, openMarkerIndex-1);
+                Logger.debug("\subExpressionFactor=" + subExpressionFactor + ", subExpressionFactorIndex="+subExpressionFactorIndex);
+    
+                let distributedSubExpression = await this.processDistributive(subExpresion, subExpressionFactor, subExpressionOperator);
+                Logger.debug("\ndistributedSubExpression=" + distributedSubExpression + ", operator="+subExpressionOperator);
+    
+                const subExpressionToReplace = expression.substring(subExpressionOperator == '+' || subExpressionOperator == '-'?openMarkerIndex:subExpressionFactorIndex, 
+                                                                    openMarkerIndex + subExpresion.length + 2);
+                Logger.debug("\nsubExpressionToReplace=" + subExpressionToReplace);
+                expression = expression.replace(subExpressionToReplace, distributedSubExpression);
+                Logger.debug("\nexpression=" + expression);
+                
+                expressionMarkers = [...expression].map((expressionChar, index) => (shared.isSeparator(expressionChar) ? index : undefined)).filter(x => x != undefined);            
+                Logger.debug("\nupdated expressionMarkers=" + shared.debugArray(expressionMarkers));
+            }
+        }        
+
+
+        if(factor != null && operator != null) {
+
             let expressionArrs = this.extractCompents(expression);
+            Logger.debug("\nexpressionArrs=" + shared.debugArray(expressionArrs));
             let expressionNumbers = expressionArrs[2];
 
-            switch (operator) {
-                case '*':
-                    for(let i=0;i<expressionNumbers.length;i++) {
-                        expressionNumbers[i][0] = number * expressionNumbers[i][0];
-                    }
-                    break;
+            if(shared.isLetter(factor)) {
 
-                case '/':
-                    for(let i=0;i<expressionNumbers.length;i++) {
-                        expressionNumbers[i][0] = number / expressionNumbers[i][0];
-                    }
-                case '-':
-                    for(let i=0;i<expressionNumbers.length;i++) {
-                        expressionNumbers[i][0] = (-1) * expressionNumbers[i][0];
-                    }
-                    break;
-                default: 
-                    break;
-            }            
+                Logger.debug("\n " + expression + " " + operator + " " + factor);
+
+                for(let i=0;i<expressionNumbers.length;i++) {
+                    let operatorIndex = expressionNumbers[i][1] + expressionNumbers[i][0].length - 1;
+                    this.incrementAllIndexesBiggerThan(expressionArrs, operatorIndex,2)
+
+                    expressionArrs[1].push([operator,operatorIndex+1]);
+                    expressionArrs[0].push([factor,operatorIndex+2]);
+
+                    Logger.debug("\nupdated expressionArrs=" + shared.debugArray(expressionArrs));
+                }
+
+            } else {
+
+                switch (operator) {
+                    case '*':
+                        for(let i=0;i<expressionNumbers.length;i++) {
+                            expressionNumbers[i][0] = factor * expressionNumbers[i][0];
+                        }
+                        break;
+    
+                    case '/':
+                        for(let i=0;i<expressionNumbers.length;i++) {
+                            expressionNumbers[i][0] = factor / expressionNumbers[i][0];
+                        }
+                    case '-':
+                        for(let i=0;i<expressionNumbers.length;i++) {
+                            expressionNumbers[i][0] = (-1) * expressionNumbers[i][0];
+                        }
+                        break;
+                    default: 
+                        break;
+                }
+            }
+
 
             expression = this.rebuildExpression(expressionArrs);
             Logger.info("expression rebuild after distributive: " + expression);
         }
 
+        Logger.debug("\nEnd processDistributive: expression = "+expression+", factor="+factor+", operator="+operator+"\n\n");
         return expression;
     }
     
@@ -178,11 +230,21 @@ class Equation extends InputMethod {
     async solve(query) {
 
         let maxIndex = query.length;
-        let [leftExpression, rightExpression] = query.split('=').map(expr => this.extractCompents(this.processDistributive(expr)));
+        let expressionArray = query.split('=');
+
+        for(let i=0;i<expressionArray.length;i++) {
+            expressionArray[i] = await this.processDistributive(expressionArray[i]);
+            expressionArray[i] = this.extractCompents(expressionArray[i]);
+        }
+
+        let [leftExpression, rightExpression] = expressionArray;
+
         this.separateNumbersAndVars(leftExpression, rightExpression, maxIndex);
         
         let expression = this.rebuildExpression(rightExpression);
-        Logger.debug("rebuilt right expression before solve:" + expression);
+        let leftExpressionRebuilt = this.rebuildExpression(leftExpression);
+        Logger.debug("before solve - left:" + leftExpressionRebuilt);
+        Logger.debug("before solve - right:" + expression);
 
         let result = await this.solveMathExpression(expression);
          
