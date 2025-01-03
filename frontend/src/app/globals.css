@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --input: #0D47A1;
+  --border: #E0E0E0;
+  --button: #00ACC1;
+  --highlight: #FFD54F;  
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --input: #0D47A1;
+    --border: #E0E0E0;
+    --button: #00ACC1;
+    --highlight: #FFD54F;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}
